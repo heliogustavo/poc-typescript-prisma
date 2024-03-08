@@ -1,7 +1,10 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Pool, QueryResult } from 'pg';
+
+//conection
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
 dotenv.config();
 
@@ -10,39 +13,34 @@ type Delivery = {
   food: string;
 }
 const app = express();
-app.use(cors());
+app.use(cors());  
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-//CONECTION
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_DATABASE_URL
-});
-
-pool.connect()
-  .then(() => {
-    console.log("PostgreSQL connected!");
-  })
-  .catch(err => {
-    console.error(err.message);
-  });
 
 app.get('/all-delivers', async (req: Request, res: Response) => {
   try {
-    const result: QueryResult<Delivery> = await pool.query('SELECT * FROM delivers;');
-    const deliveries: Delivery[] = result.rows;
-    res.json(deliveries);
-  } catch (err) {
-    console.error(err);
+    const allDelivers = await prisma.delivers.findMany();
+    res.json(allDelivers);
+    
+  } catch (error) {
+    console.error('Error fetching all delivers:', error);
     res.status(500).send('Internal Server Error');
   }
 });
+
 
 app.post('/add-delivery', async (req: Request<{}, {}, Delivery>, res: Response) => {
   const { name, food } = req.body;
 
   try {
-    await pool.query('INSERT INTO delivers (name, food) VALUES ($1, $2)', [name, food]);
-    res.send('Delivery added...');
+    const newDelivery = await prisma.delivers.create({
+      data: {
+        name,
+        food,
+      },
+    });
+
+    res.send('Delivery added :)');
   } catch (err) {
     console.error(err);
     res.status(500).send('Internal Server Error');
